@@ -1,0 +1,44 @@
+version: '3.8'
+services:
+  nginx:
+    image: nginx:1.21
+    ports:
+      - 8000:80
+    volumes:
+      - .:/var/www/php
+      - ./.docker/nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - php
+  php:
+    build: ./.docker/php
+    image: php:8.1-fpm
+    environment:
+      DATABASE_URL: "mysql://${DB_USER}:${DB_PASSWORD}@mysql:3306/${DB_NAME}?mariadb=5.7"
+    working_dir: /var/www/php
+    volumes:
+      - .:/var/www/php
+    links: 
+     - mysql
+  mysql:
+    image: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_DATABASE: "${DB_NAME}"
+    volumes:
+      - ./.docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+      - mysqldata:/var/lib/mysql
+    healthcheck:
+      test: mysqladmin ping -h 127.0.0.1 -u root --password=$$MYSQL_ROOT_PASSWORD
+      interval: 5s
+      retries: 10
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5
+    ports:
+     - 8080:80
+    environment:
+      PMA_HOST: mysql
+    depends_on:
+      mysql:
+        condition: service_healthy
+volumes:
+  mysqldata:
